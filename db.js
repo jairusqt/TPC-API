@@ -9,11 +9,9 @@ const db_config = {
 };
 
 let connection;
-
 function handleDisconnect() {
   // Create a new connection using the configuration
   connection = mysql.createConnection(db_config);
-
   // Connect to the database
   connection.connect(function(err) {
     if (err) {

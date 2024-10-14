@@ -2,8 +2,10 @@ const con = require('./db.js');
 const pool = require('./pool.js');
 const express = require('express');
 const cors = require('cors');
+const connection = require('./db.js');
 const app = express();
 const PORT = 3000;
+const mysql = require('mysql');
 
 app.use(cors());
 app.use(express.json());
@@ -44,7 +46,7 @@ app.post('/insertMainFlow', (req, res) => {
       return res.status(500).json({ error: 'Error inserting data.' });
     }
     const flow_main_id = results.insertId
-    res.status(200).json({ 
+    res.status(200).json({
       message: 'Process Flow Main inserted successfully',
       flow_main_id: flow_main_id
     });
@@ -162,7 +164,7 @@ app.post('/insertConditionFlow', (req, res) => {
     field_name1, field_name2, output_fieldname, fetching_eng, eng_server, 
     eng_db_username, eng_db_password) 
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-      
+
   pool.query(sql, [
     condition.main_flow_id,
     condition.item_id,
@@ -188,7 +190,7 @@ app.post('/insertConditionFlow', (req, res) => {
   ], (error, results, fields) => {
     if (error) {
       console.error('Error inserting condition:', error);
-      res.status(500).json({ error: 'Error inserting condition.', message: 'Network Error'});
+      res.status(500).json({ error: 'Error inserting condition.', message: 'Network Error' });
     } else {
       const conditionId = results.insertId;
       console.log('Inserted condition with ID:', conditionId);
@@ -303,7 +305,7 @@ app.post('/insertItemCode', (req, res) => {
     data.item_parts_number,
     data.item_description
   ], (error, results, fields) => {
-    if(error) {
+    if (error) {
       console.error('Error inserting item code:', error);
       res.status(500).json({ error: 'Error inserting item code.' });
     } else {
@@ -312,6 +314,25 @@ app.post('/insertItemCode', (req, res) => {
       res.status(200).json({
         message: 'Item Code inserted successfully',
         id: item_id,
+      });
+    }
+  })
+});
+
+app.post('/deleteItemCode', (req, res) => {
+  const data = req.body;
+
+  const sql = `DELETE FROM itemmaster_main WHERE id_itemmaster = ?`;
+
+  pool.query(sql, [
+    data.id_itemmaster,
+  ], (error, results, fields) => {
+    if (error) {
+      console.error('Error inserting item code:', error);
+      res.status(500).json({ error: 'Error inserting item code.' });
+    } else {
+      res.status(200).json({
+        message: 'Item Code deleted successfully',
       });
     }
   })
@@ -362,7 +383,7 @@ app.get('/conditions/:flow_main_id', (req, res) => {
     connection.query(sql, [flow_main_id], (error, results, fields) => {
       if (error) {
         console.error('Error fetching conditions:', error);
-        res.status(500).json({ error: 'Error fetching conditions.'});
+        res.status(500).json({ error: 'Error fetching conditions.' });
       } else {
         res.status(200).json(results);
         connection.release();
@@ -410,7 +431,7 @@ app.get('/getItemCondition/:assignment_id', (req, res) => {
 
 app.get('/itemmaster_main', (req, res) => {
 
-  const sql = "SELECT * FROM itemmaster_main ORDER BY id_itemmaster DESC LIMIT 10";
+  const sql = "SELECT * FROM itemmaster_main ORDER BY id_itemmaster DESC";
 
   pool.getConnection((err, connection) => {
     connection.query(sql, [], (error, results, fields) => {
@@ -443,21 +464,49 @@ app.get('/getFormAssignment/:assignment_id', (req, res) => {
   })
 });
 
+// ADDED BY JOHN DEE
+app.get('/getPoNumber/:po_number', (req, res) => {
+  console.log(req.params);
+  var con = mysql.createConnection({
+    host: '172.16.2.41',
+    user: 'sdjeff2',
+    password: 'sdjeff1',
+    database: 'ccp_cci'
+  });
+
+  const po_number = req.params.po_number;
+
+  con.connect(function (err) {
+    if (err) throw err;
+    const sql = "SELECT hct_OrderQuantity FROM `hct_info_cap_order` WHERE `hct_po_no` = ?";
+    con.query(sql, [po_number], (err, result) => {
+      if (err) throw err;
+      res.status(200).json({ result });
+      con.end();
+    });
+  });
+
+});
+
 app.post('/updateDeliveryDate', (req, res) => {
   const data = req.body;
 
-  const sql = `UPDATE form_assignment_tbl SET delivery_date = ? WHERE assignment_id = ?`;
+  const sql = `UPDATE form_assignment_tbl SET delivery_date = ?, po_number = ?, quantity = ?  WHERE assignment_id = ?`;
 
+  console.log(data);
+  console.log('updateDeliveryDate');
   pool.query(sql, [
     data.delivery_date,
+    data.po_number,
+    data.quantity,
     data.assignment_id,
   ], (error, results, fields) => {
-    if(error) {
+    if (error) {
       console.error('Error updating:', error);
       res.status(500).json({ error: 'Error updating.' });
     } else {
       res.status(200).json({
-        message: 'Delivery Date update successful',
+        message: 'The data update was successful.',
       });
     }
   })
@@ -466,22 +515,28 @@ app.post('/updateDeliveryDate', (req, res) => {
 app.post('/updateDeliveryDateHeader', (req, res) => {
   const data = req.body;
 
-  const sql = `UPDATE ccp_cci_input_main SET delivery_date = ? WHERE assignment_id = ?`;
+  const sql = `UPDATE ccp_cci_input_main SET delivery_date = ?, po_number = ?, order_quantity = ? WHERE assignment_id = ?`;
 
+  console.log(data);
+  console.log('updateDeliveryDateHeader');
   pool.query(sql, [
     data.delivery_date,
+    data.po_number,
+    data.quantity,
     data.assignment_id,
   ], (error, results, fields) => {
-    if(error) {
+    if (error) {
       console.error('Error updating:', error);
       res.status(500).json({ error: 'Error updating.' });
     } else {
       res.status(200).json({
-        message: 'Delivery Date update successful',
+        message: 'The data update was successful.',
       });
     }
   })
+
 });
+
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
